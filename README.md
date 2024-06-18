@@ -11,5 +11,5 @@ This installation also includes the necessary Kinova Kortex API and packages.
 - Finally, source your workspace `source ./install/setup.bash`
 
 ### Usage
-- To launch the robot in simulation, use `ros2 launch gen3_6dof_vision_moveit_config robot.launch.py robot_ip:=yyy.yyy.yyy.yyy use_fake_hardware:=true`\
-- To use the physical robot, use `ros2 launch gen3_6dof_vision_moveit_config robot.launch.py robot_ip:=192.168.1.10`
+- To launch the robot in simulation, use `ros2 launch gen3_6dof_dslr_moveit_config robot.launch.py robot_ip:=yyy.yyy.yyy.yyy use_fake_hardware:=true`\
+- To use the physical robot, use `ros2 launch gen3_6dof_dslr_moveit_config robot.launch.py robot_ip:=192.168.1.10`
