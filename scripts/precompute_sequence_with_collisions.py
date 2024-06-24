@@ -108,8 +108,8 @@ if __name__ == "__main__":
     #User Parameters
     robot_ip = "yyy.yyy.yyy.yyy"
     use_fake_hardware = "true"
-    planner = "ompl_rrtc"
-    velocity_scaling = 0.1
+    planner = "ompl_rrtc" # pilz_lin, ompl_rrtc, chomp_planner
+    velocity_scaling = 0.5
 
     #MoveItPy Configuration
     config_dict = configure_moveit(robot_ip, use_fake_hardware)
