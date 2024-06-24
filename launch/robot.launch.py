@@ -46,11 +46,21 @@ def launch_setup(context, *args, **kwargs):
     moveit_config = (
         MoveItConfigsBuilder("gen3", package_name="gen3_6dof_dslr_moveit_config")
         .robot_description(mappings=launch_arguments)
-        .planning_pipelines(pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"])
+        #.planning_pipelines(pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"])
+        .planning_scene_monitor(publish_robot_description_semantic=True)
+        .moveit_cpp(file_path=get_package_share_directory("gen3_6dof_dslr_moveit_config") + "/config/moveit_cpp.yaml")
         .to_moveit_configs()
     )
 
     moveit_config.moveit_cpp.update({"use_sim_time": use_sim_time.perform(context) == "true"})
+
+    # moveit_py_node = Node(
+    #     name="moveit_py",
+    #     package="gen3_6dof_dslr_moveit_config",
+    #     executable="precompute_sequence_with_collisions.py",
+    #     output="both",
+    #     parameters=[moveit_config.to_dict()],
+    # )
 
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -151,6 +161,7 @@ def launch_setup(context, *args, **kwargs):
     )
 
     nodes_to_start = [
+        #moveit_py_node,
         ros2_control_node,
         robot_state_publisher,
         joint_state_broadcaster_spawner,

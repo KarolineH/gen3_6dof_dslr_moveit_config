@@ -9,3 +9,8 @@ install(DIRECTORY launch DESTINATION share/${PROJECT_NAME}
   PATTERN "setup_assistant.launch" EXCLUDE)
 install(DIRECTORY config DESTINATION share/${PROJECT_NAME})
 install(DIRECTORY description DESTINATION share/${PROJECT_NAME})
+
+install(PROGRAMS
+  scripts/precompute_sequence_with_collisions.py
+  DESTINATION lib/${PROJECT_NAME}
+)
