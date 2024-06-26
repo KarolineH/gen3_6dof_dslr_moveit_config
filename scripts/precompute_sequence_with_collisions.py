@@ -11,6 +11,8 @@ from moveit_configs_utils import MoveItConfigsBuilder
 from moveit.core.robot_state import RobotState
 from moveit.planning import PlanRequestParameters
 import numpy as np
+from geometry_msgs.msg import PoseStamped
+from scipy.spatial.transform import Rotation as R
 
 
 '''
@@ -21,7 +23,7 @@ Then plans a sequence of movements through a list of desired joint states and re
 
 class MoveItIF:
 
-    def __init__(self, robot_ip, use_fake_hardware, planner, velocity_scaling, scene_file=None):
+    def __init__(self, robot_ip="yyy.yyy.yyy.yyy", use_fake_hardware="true", planner="ompl_rrtc", velocity_scaling=0.5, scene_file=None):
         moveit_config = self.configure_moveit(robot_ip, use_fake_hardware)
 
         self.logger = get_logger("moveit_py_IF")
@@ -142,6 +144,36 @@ class MoveItIF:
             else:
                 self.logger.error("Failed to plan")
         return plans
+    
+    def plan_pose_to_pose(self, pose_list):
+        plans = []
+        for pose in pose_list:
+            pose_goal = PoseStamped()
+            pose_goal.header.frame_id = "world"
+
+            quat = R.from_matrix(pose[:3,:3]).as_quat()
+            pose_goal.pose.orientation.x = quat[0]
+            pose_goal.pose.orientation.y = quat[1]
+            pose_goal.pose.orientation.z = quat[2]
+            pose_goal.pose.orientation.w = quat[3]
+
+            pose_goal.pose.position.x = pose[0,3]
+            pose_goal.pose.position.y = pose[1,3]
+            pose_goal.pose.position.z = pose[2,3]
+
+            self.arm.set_goal_state(pose_stamped_msg=pose_goal, pose_link="dslr_body_link")
+
+            # plan
+            plan_result = self.arm.plan(self.plan_params)
+            if plan_result:
+                #record
+                plans.append(plan_result)
+                # set the target as the new start state
+                # TODO: Instead of executing here, is there a way to just set the new start state?
+                self.mvp.execute(plan_result.trajectory, controllers=[])
+            else:
+                self.logger.error("Failed to plan")
+        return plans
 
     def execute_plans(self, plans):
         for plan in plans:
@@ -151,16 +183,19 @@ class MoveItIF:
 if __name__ == "__main__":
 
     #User Parameters
-    robot_ip = "yyy.yyy.yyy.yyy"
-    use_fake_hardware = "true"
-    planner = "ompl_rrtc" # pilz_lin, ompl_rrtc, chomp_planner
-    velocity_scaling = 0.5
+    # robot_ip = "yyy.yyy.yyy.yyy"
+    # use_fake_hardware = "true"
+    planner = "pilz_lin" # pilz_lin, ompl_rrtc, chomp_planner
+    # velocity_scaling = 0.5
     scene_file ='/home/karo/rosws/src/gen3_6dof_dslr_moveit_config/scene/desk_scene.scene'
 
     # Initialise MoveItPy node
     rclpy.init()
-    IF = MoveItIF(robot_ip, use_fake_hardware, planner, velocity_scaling, scene_file)
+    IF = MoveItIF(scene_file=scene_file)
 
-    state_list = [[29,5,85,-86,-57,6], [-21,11,-69,84,71,-8],[47,93,-27,61,56,-49],[65,121,-20,68,78,-36]]
-    plans = IF.plan_state_to_state(state_list)
-    #IF.execute_plans(plans)
+    pose_list = np.load('/home/karo/ws/robotic_capture/offline_planning/0.3_-0.03_-0.01_0.7_1000_poses.npy')
+    plans = IF.plan_pose_to_pose(pose_list)
+    # state_list = np.load('/home/karo/ws/robotic_capture/offline_planning/...npy')
+    # #state_list = [[29,5,85,-86,-57,6], [-21,11,-69,84,71,-8],[47,93,-27,61,56,-49],[65,121,-20,68,78,-36]]
+    # plans = IF.plan_state_to_state(state_list)
+    # IF.execute_plans(plans)
