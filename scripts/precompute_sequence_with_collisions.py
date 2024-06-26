@@ -19,28 +19,51 @@ Also intialises a pre-defined planning scene with collision objects
 Then plans a sequence of movements through a list of desired joint states and records the planned trajectories
 '''
 
-def configure_moveit(robot_ip, use_fake_hardware):
-    # MoveItPy Configuration
-    # If this node is launched from the main launch file, this manual definition is not necessary
-    launch_arguments = {
-        "robot_ip": robot_ip,
-        "use_fake_hardware": use_fake_hardware,
-        "gripper": "false",
-        "dof": "6",
-        "vision": "true",
-        }
-    moveit_config = (
-            MoveItConfigsBuilder(robot_name="gen3", package_name="gen3_6dof_dslr_moveit_config")
-            .robot_description(mappings=launch_arguments)
-            #.planning_pipelines(pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"])
-            .planning_scene_monitor(publish_robot_description_semantic=True)
-            .moveit_cpp(file_path=get_package_share_directory("gen3_6dof_dslr_moveit_config") + "/config/moveit_cpp.yaml")
-        .to_moveit_configs()
-        ).to_dict()
-    return moveit_config
+class MoveItIF:
 
-def initialise_collision_scene(pcm):
-    with pcm.read_write() as scene:
+    def __init__(self, robot_ip, use_fake_hardware, planner, velocity_scaling, scene_file=None):
+        moveit_config = self.configure_moveit(robot_ip, use_fake_hardware)
+
+        self.logger = get_logger("moveit_py_IF")
+        self.mvp = MoveItPy(node_name="moveit_py", config_dict=moveit_config)
+        self.arm = self.mvp.get_planning_component("manipulator")
+        self.plan_params = PlanRequestParameters(self.mvp, planner) # change planner settings here
+        self.plan_params.max_velocity_scaling_factor = velocity_scaling
+
+        # define collision scene
+        pcm = self.mvp.get_planning_scene_monitor()
+        if scene_file is None:
+            collision_object = self.define_scene_manual()
+        else:
+            collision_object = self.read_scene_from_file(scene_file)
+        self.initialise_collision_scene(pcm, collision_object)
+
+        # get robot model from initial state
+        initial_state = self.arm.get_start_state()
+        self.robot_model = initial_state.robot_model
+
+    def configure_moveit(self, robot_ip, use_fake_hardware):
+        # MoveItPy Configuration
+        # If this node is launched from the main launch file, this manual definition is not necessary
+        launch_arguments = {
+            "robot_ip": robot_ip,
+            "use_fake_hardware": use_fake_hardware,
+            "gripper": "false",
+            "dof": "6",
+            "vision": "true",
+            }
+        moveit_config = (
+                MoveItConfigsBuilder(robot_name="gen3", package_name="gen3_6dof_dslr_moveit_config")
+                .robot_description(mappings=launch_arguments)
+                #.planning_pipelines(pipelines=["ompl", "chomp", "pilz_industrial_motion_planner"])
+                .planning_scene_monitor(publish_robot_description_semantic=True)
+                .moveit_cpp(file_path=get_package_share_directory("gen3_6dof_dslr_moveit_config") + "/config/moveit_cpp.yaml")
+            .to_moveit_configs()
+            ).to_dict()
+        return moveit_config
+
+
+    def define_scene_manual(self):
         collision_object = CollisionObject()
         collision_object.header.frame_id = "world"
         collision_object.id = "office_furniture"
@@ -61,48 +84,70 @@ def initialise_collision_scene(pcm):
             collision_object.primitive_poses.append(box_pose)
             collision_object.operation = CollisionObject.ADD
 
-        scene.apply_collision_object(collision_object)
-        scene.current_state.update()  # Important to ensure the scene is updated
+        return collision_object
 
-def define_state(robot_model, angles):
-    state = RobotState(robot_model)
-    state.set_joint_group_positions("manipulator", np.radians(angles))
-    return state
+    def read_scene_from_file(self, path):
 
-def main(moveit_config, planner, velocity_scaling):
-    # initialise
-    rclpy.init()
-    logger = get_logger("moveit_py_planning_scene")
-    mvp = MoveItPy(node_name="moveit_py", config_dict=moveit_config)
-    pcm = mvp.get_planning_scene_monitor()
-    initialise_collision_scene(pcm)
-    arm = mvp.get_planning_component("manipulator")
-    params = PlanRequestParameters(mvp, planner) # change planner settings here
-    params.max_velocity_scaling_factor = velocity_scaling
+        collision_object = CollisionObject()
+        collision_object.header.frame_id = "world"
+        collision_object.id = "office_furniture"
 
-    initial_state = arm.get_start_state()
-    robot_model = initial_state.robot_model
+        with open(path, 'r') as file:
+            data = file.read()
 
-    # a list of joint states, in order
-    state_list = [[29,5,85,-86,-57,6], [-21,11,-69,84,71,-8],[47,93,-27,61,56,-49],[65,121,-20,68,78,-36]]
-    movements = []
+        geometry_info = data.split('*')[1:]
+        for obj in geometry_info:
+            if obj.split('\n')[4]=='box':
+                pose=np.asarray(obj.split('\n')[1].split(' '), dtype=np.float64)
+                dim=np.asarray(obj.split('\n')[5].split(' '), dtype=np.float64)
+                box_pose = Pose()
+                box_pose.position.x = pose[0]
+                box_pose.position.y = pose[1]
+                box_pose.position.z = pose[2]
+                box = SolidPrimitive()
+                box.type = SolidPrimitive.BOX
+                box.dimensions = list(dim)
 
-    for state in state_list:
-        joint_state = define_state(robot_model, state)
-        arm.set_goal_state(robot_state=joint_state)
-        # plan
-        plan_result = arm.plan(params)
-        if plan_result:
-            #record
-            movements.append(plan_result)
-            # set the target as the new start state
-            arm.set_start_state(robot_state=joint_state)
-            #mvp.execute(plan_result.trajectory, controllers=[]) # only execute plans if you are sure of the outcome
-        else:
-            logger.error("Failed to plan")
+                collision_object.primitives.append(box)
+                collision_object.primitive_poses.append(box_pose)
+                collision_object.operation = CollisionObject.ADD
 
-    return movements
+            else:
+                print('Collision object other than type "box" detected. Skipping...')
+        return collision_object
 
+    def initialise_collision_scene(self, pcm, collision_object):
+        with pcm.read_write() as scene:
+            scene.apply_collision_object(collision_object)
+            scene.current_state.update()  # Important to ensure the scene is updated
+        return
+
+    def define_state(self, robot_model, angles):
+        state = RobotState(robot_model)
+        state.set_joint_group_positions("manipulator", np.radians(angles))
+        return state
+
+    def plan_state_to_state(self, state_list):
+        plans = []
+        for state in state_list:
+            joint_state = self.define_state(self.robot_model, state)
+            self.arm.set_goal_state(robot_state=joint_state)
+            # plan
+            plan_result = self.arm.plan(self.plan_params)
+            if plan_result:
+                #record
+                plans.append(plan_result)
+                # set the target as the new start state
+                self.arm.set_start_state(robot_state=joint_state)
+            else:
+                self.logger.error("Failed to plan")
+        return plans
+
+    def execute_plans(self, plans):
+        for plan in plans:
+            self.mvp.execute(plan.trajectory, controllers=[]) # only execute plans if you are sure of the outcome
+        return
+    
 if __name__ == "__main__":
 
     #User Parameters
@@ -110,9 +155,12 @@ if __name__ == "__main__":
     use_fake_hardware = "true"
     planner = "ompl_rrtc" # pilz_lin, ompl_rrtc, chomp_planner
     velocity_scaling = 0.5
+    scene_file ='/home/karo/rosws/src/gen3_6dof_dslr_moveit_config/scene/desk_scene.scene'
 
-    #MoveItPy Configuration
-    config_dict = configure_moveit(robot_ip, use_fake_hardware)
+    # Initialise MoveItPy node
+    rclpy.init()
+    IF = MoveItIF(robot_ip, use_fake_hardware, planner, velocity_scaling, scene_file)
 
-    plans = main(config_dict, planner, velocity_scaling)
-    print(plans)
+    state_list = [[29,5,85,-86,-57,6], [-21,11,-69,84,71,-8],[47,93,-27,61,56,-49],[65,121,-20,68,78,-36]]
+    plans = IF.plan_state_to_state(state_list)
+    #IF.execute_plans(plans)

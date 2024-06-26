@@ -34,6 +34,7 @@ def launch_setup(context, *args, **kwargs):
     use_fake_hardware = LaunchConfiguration("use_fake_hardware")
     launch_rviz = LaunchConfiguration("launch_rviz")
     use_sim_time = LaunchConfiguration("use_sim_time")
+    planning_scene_file = get_package_share_directory("gen3_6dof_dslr_moveit_config") + "/scene/desk_scene.scene"
 
     launch_arguments = {
         "robot_ip": robot_ip,
@@ -54,13 +55,13 @@ def launch_setup(context, *args, **kwargs):
 
     moveit_config.moveit_cpp.update({"use_sim_time": use_sim_time.perform(context) == "true"})
 
-    # moveit_py_node = Node(
-    #     name="moveit_py",
-    #     package="gen3_6dof_dslr_moveit_config",
-    #     executable="precompute_sequence_with_collisions.py",
-    #     output="both",
-    #     parameters=[moveit_config.to_dict()],
-    # )
+    scene_pub_node = Node(
+        name="scene_publisher",
+        package="gen3_6dof_dslr_moveit_config",
+        executable="apply_plan_scene.py",
+        output="both",
+        parameters=[planning_scene_file],
+    )
 
     move_group_node = Node(
         package="moveit_ros_move_group",
@@ -162,6 +163,7 @@ def launch_setup(context, *args, **kwargs):
 
     nodes_to_start = [
         #moveit_py_node,
+        scene_pub_node,
         ros2_control_node,
         robot_state_publisher,
         joint_state_broadcaster_spawner,
