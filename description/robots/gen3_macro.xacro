@@ -3,7 +3,7 @@
 <robot name="gen3_arm" xmlns:xacro="http://ros.org/wiki/xacro">
 
   <!-- Propagate last link name information because it is the gripper's parent link -->
-  <xacro:property name="last_arm_link" value="end_effector_link"/>
+  <xacro:property name="last_arm_link" value="dslr_body_link"/>
   <xacro:property name="PI" value="3.1415926535897931"/>
 
   <xacro:macro name="load_arm" params="
