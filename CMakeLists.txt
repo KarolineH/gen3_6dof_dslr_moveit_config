@@ -14,5 +14,6 @@ install(DIRECTORY scene DESTINATION share/${PROJECT_NAME})
 install(PROGRAMS
   scripts/precompute_sequence_with_collisions.py
   scripts/apply_plan_scene.py
+  scripts/mock_servo_input.py
   DESTINATION lib/${PROJECT_NAME}
 )
