@@ -19,7 +19,7 @@ class MinimalPublisher(Node):
         msg = TwistStamped()
         msg.header.stamp = self.get_clock().now().to_msg()
         msg.header.frame_id = 'base_link'
-        msg.twist.linear.x = -0.1
+        msg.twist.linear.z = 0.1
         self.publisher_.publish(msg)
         self.get_logger().info('Publishing: "%s"' % self.i)
         self.i += 1
