@@ -108,17 +108,17 @@ def launch_setup(context, *args, **kwargs):
         executable="joy_node",
     )
 
-    # joy_to_servo_node = Node(
-    #     name="joy_to_servo_node",
-    #     package="gen3_6dof_dslr_moveit_config",
-    #     executable="joy_to_servo_input.py",
-    # )
-
     joy_to_servo_node = Node(
         name="joy_to_servo_node",
         package="gen3_6dof_dslr_moveit_config",
-        executable="spherical_joy_to_servo.py",
+        executable="joy_to_servo_input.py",
     )
+
+    # joy_to_servo_node = Node(
+    #     name="joy_to_servo_node",
+    #     package="gen3_6dof_dslr_moveit_config",
+    #     executable="spherical_joy_to_servo.py",
+    # )
 
     sphere_tf_broadcast_node = Node(
         name="sphere_tf_broadcaster",

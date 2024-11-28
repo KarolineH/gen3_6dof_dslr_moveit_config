@@ -76,9 +76,9 @@ class JoyToServoPub(Node):
 
     def convert_joy_to_cmd(self, axes, buttons, twist):
         # sphere definition
-        radius = 0.5
+        radius = 0.1
         speed_scalar = 0.2
-        k_r = 0.1 # radial correction gain
+        k_r = 0.0 # radial correction gain
         radius_tolerance = 0.01
 
         # current robot pose in spherical coordinates
