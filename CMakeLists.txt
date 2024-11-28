@@ -16,5 +16,7 @@ install(PROGRAMS
   scripts/apply_plan_scene.py
   scripts/mock_servo_input.py
   scripts/joy_to_servo_input.py
+  scripts/spherical_joy_to_servo.py
+  scripts/static_tf_pub.py
   DESTINATION lib/${PROJECT_NAME}
 )

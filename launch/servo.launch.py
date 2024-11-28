@@ -108,11 +108,23 @@ def launch_setup(context, *args, **kwargs):
         executable="joy_node",
     )
 
+    # joy_to_servo_node = Node(
+    #     name="joy_to_servo_node",
+    #     package="gen3_6dof_dslr_moveit_config",
+    #     executable="joy_to_servo_input.py",
+    # )
+
     joy_to_servo_node = Node(
         name="joy_to_servo_node",
         package="gen3_6dof_dslr_moveit_config",
-        executable="joy_to_servo_input.py",
+        executable="spherical_joy_to_servo.py",
     )
+
+    sphere_tf_broadcast_node = Node(
+        name="sphere_tf_broadcaster",
+        package="gen3_6dof_dslr_moveit_config",
+        executable="static_tf_pub.py",
+    ) 
 
     ############################
 
@@ -219,7 +231,8 @@ def launch_setup(context, *args, **kwargs):
         static_tf,
         servo_node,
         joy_node,
-        joy_to_servo_node,
+        # joy_to_servo_node,
+        sphere_tf_broadcast_node,
     ]
 
     return nodes_to_start
