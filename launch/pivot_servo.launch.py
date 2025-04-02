@@ -1,18 +1,6 @@
-# Copyright (c) 2023 PickNik, Inc.
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 
 import os
+import yaml
 
 from launch import LaunchDescription
 from launch.substitutions import LaunchConfiguration
@@ -24,10 +12,19 @@ from launch.actions import (
 from launch.event_handlers import OnProcessExit
 from launch.conditions import IfCondition
 from launch_ros.actions import Node
+import launch_ros
+from launch_param_builder import ParameterBuilder
+
 from ament_index_python.packages import get_package_share_directory
 from moveit_configs_utils import MoveItConfigsBuilder
 
-
+def load_yaml(file_path):
+    try:
+        with open(file_path, "r") as file:
+            return yaml.safe_load(file)
+    except EnvironmentError:  # parent of IOError, OSError *and* WindowsError where available
+        return None
+    
 def launch_setup(context, *args, **kwargs):
     # Initialize Arguments
     robot_ip = LaunchConfiguration("robot_ip")
@@ -35,6 +32,7 @@ def launch_setup(context, *args, **kwargs):
     launch_rviz = LaunchConfiguration("launch_rviz")
     use_sim_time = LaunchConfiguration("use_sim_time")
     planning_scene_file = get_package_share_directory("gen3_6dof_dslr_moveit_config") + "/scene/desk_scene.scene"
+    pivot_offset = 0.4
 
     launch_arguments = {
         "robot_ip": robot_ip,
@@ -71,6 +69,59 @@ def launch_setup(context, *args, **kwargs):
             moveit_config.to_dict(),
         ],
     )
+
+    # # pivot frame broadcaster
+    # pivot_frame_broadcaster = Node(
+    #     package="gen3_6dof_dslr_moveit_config",
+    #     executable="pivot_tf_broadcaster.py",
+    #     parameters=[{'pivot_offset': pivot_offset}]
+    # )
+
+    ### SERVO STUFF HERE #######
+    servo_config_file = get_package_share_directory("gen3_6dof_dslr_moveit_config") + "/config/servo.yaml"
+    # Get parameters for the Servo node
+    servo_params = {
+        "moveit_servo": ParameterBuilder("moveit_servo")
+        .yaml(servo_config_file)
+        .to_dict()
+    }
+    print(f"Built servo params: {servo_params}")
+
+    # This sets the update rate and planning group name for the acceleration limiting filter.
+    acceleration_filter_update_period = {"update_period": 0.01}
+    planning_group_name = {"planning_group_name": "manipulator"}
+    
+    # Launch a standalone Servo node.
+    # As opposed to a node component, this may be necessary (for example) if Servo is running on a different PC
+    servo_node = launch_ros.actions.Node(
+        package="moveit_servo",
+        executable="servo_node",
+        name="servo_node",
+        parameters=[
+            servo_params,
+            acceleration_filter_update_period,
+            planning_group_name,
+            moveit_config.robot_description,
+            moveit_config.robot_description_semantic,
+            moveit_config.robot_description_kinematics,
+            moveit_config.joint_limits,
+        ],
+        output="screen",
+    )
+
+    joy_node = Node(
+        name="joystick_node",
+        package="joy",
+        executable="joy_node",
+    )
+
+    joy_to_servo_node = Node(
+        name="joy_to_servo_node",
+        package="gen3_6dof_dslr_moveit_config",
+        executable="joy_to_servo_input.py",
+    )
+
+    ############################
 
     # Static TF
     static_tf = Node(
@@ -111,17 +162,17 @@ def launch_setup(context, *args, **kwargs):
         arguments=["joint_trajectory_controller", "-c", "/controller_manager"],
     )
 
-    robot_pos_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["twist_controller", "--inactive", "-c", "/controller_manager"],
-    )
+    # robot_pos_controller_spawner = Node(
+    #     package="controller_manager",
+    #     executable="spawner",
+    #     arguments=["twist_controller", "--inactive", "-c", "/controller_manager"],
+    # )
 
-    fault_controller_spawner = Node(
-        package="controller_manager",
-        executable="spawner",
-        arguments=["fault_controller", "-c", "/controller_manager"],
-    )
+    # fault_controller_spawner = Node(
+    #     package="controller_manager",
+    #     executable="spawner",
+    #     arguments=["fault_controller", "-c", "/controller_manager"],
+    # )
 
     # rviz with moveit configuration
     rviz_config_file = (
@@ -163,16 +214,20 @@ def launch_setup(context, *args, **kwargs):
 
     nodes_to_start = [
         #moveit_py_node,
-        # scene_pub_node,
+        scene_pub_node,
         ros2_control_node,
         robot_state_publisher,
         joint_state_broadcaster_spawner,
         delay_rviz_after_joint_state_broadcaster_spawner,
         robot_traj_controller_spawner,
-        robot_pos_controller_spawner,
-        fault_controller_spawner,
+        # robot_pos_controller_spawner,
+        #fault_controller_spawner,
         move_group_node,
         static_tf,
+        servo_node,
+        joy_node,
+        joy_to_servo_node,
+        #pivot_frame_broadcaster,
     ]
 
     return nodes_to_start
