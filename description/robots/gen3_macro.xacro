@@ -3,7 +3,7 @@
 <robot name="gen3_arm" xmlns:xacro="http://ros.org/wiki/xacro">
 
   <!-- Propagate last link name information because it is the gripper's parent link -->
-  <xacro:property name="last_arm_link" value="end_effector_link"/>
+  <xacro:property name="last_arm_link" value="dslr_body_link"/>
   <xacro:property name="PI" value="3.1415926535897931"/>
 
   <xacro:macro name="load_arm" params="
@@ -397,14 +397,15 @@
       </collision>
     </link>
     <!-- CHANGE ALL of the origins/transforms in the following to adjust the mounted camera transform -->
+    <!-- Latest calibration from 31st October 2024 17:34:33 -->
     <joint name="${prefix}dslr_fixed_joint" type="fixed">
-      <origin xyz="-0.00034790886457611943 -0.04226343540493114 0.08396112164677054" rpy="-1.581624895332124 -0.003688590448812868 -0.000676321102353462" />
+      <origin xyz="-0.00047934889028927014 0.002814722188338866 0.05364347186373531" rpy="-1.5775802120278248 -0.003962498565399406 0.008199032753250346" />
       <parent link="${prefix}end_effector_link" />
       <child  link="${prefix}dslr_body_link" />
     </joint>
     <link name="${prefix}dslr_frame" />
     <joint name="${prefix}dslr_sensor" type="fixed">
-      <origin xyz="-0.00034790886457611943 -0.04226343540493114 0.08396112164677054" rpy="-1.581624895332124 -0.003688590448812868 -0.000676321102353462" />
+      <origin xyz="-0.00047934889028927014 0.002814722188338866 0.05364347186373531" rpy="-1.5775802120278248 -0.003962498565399406 0.008199032753250346" />
       <parent link="${prefix}end_effector_link" />
       <child  link="${prefix}dslr_frame" />
     </joint>
