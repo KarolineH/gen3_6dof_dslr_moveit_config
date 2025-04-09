@@ -55,6 +55,11 @@ def launch_setup(context, *args, **kwargs):
 
     moveit_config.moveit_cpp.update({"use_sim_time": use_sim_time.perform(context) == "true"})
 
+    # Start Pilz Industrial Motion Planner MoveGroupSequenceAction and MoveGroupSequenceService servers
+    move_group_capabilities = {
+    "capabilities": "pilz_industrial_motion_planner/MoveGroupSequenceAction pilz_industrial_motion_planner/MoveGroupSequenceService"
+    }
+
     scene_pub_node = Node(
         name="scene_publisher",
         package="gen3_6dof_dslr_moveit_config",

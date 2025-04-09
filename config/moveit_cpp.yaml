@@ -27,7 +27,7 @@ plan_request_params:
 
 pilz_lin:
   plan_request_params:
-    planning_attempts: 1
+    planning_attempts: 10
     planning_pipeline: pilz_industrial_motion_planner
     planner_id: "PTP"
     max_velocity_scaling_factor: 1.0
