@@ -168,7 +168,7 @@ def launch_setup(context, *args, **kwargs):
 
     nodes_to_start = [
         #moveit_py_node,
-        scene_pub_node,
+        #scene_pub_node,
         ros2_control_node,
         robot_state_publisher,
         joint_state_broadcaster_spawner,
